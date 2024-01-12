@@ -13,7 +13,8 @@ namespace ToDoUnitTest
     public class ToDoControllerTest
     {
         private readonly IQueryable<ToDoItemModel> _itemData;
-        private readonly IToDoDbContext _mockDbContext;
+        private readonly Mock<IToDoDbContext> _mockDbContext;
+        private readonly Mock<DbSet<ToDoItemModel>> _mockDbSet;
 
         public ToDoControllerTest()
         {
@@ -33,21 +34,21 @@ namespace ToDoUnitTest
                 }
             }.AsQueryable();
 
-            var mockSet = new Mock<DbSet<ToDoItemModel>>();
-            mockSet.As<IQueryable<ToDoItemModel>>().Setup(m => m.Provider).Returns(_itemData.Provider);
-            mockSet.As<IQueryable<ToDoItemModel>>().Setup(m => m.Expression).Returns(_itemData.Expression);
-            mockSet.As<IQueryable<ToDoItemModel>>().Setup(m => m.ElementType).Returns(_itemData.ElementType);
-            mockSet.As<IQueryable<ToDoItemModel>>().Setup(m => m.GetEnumerator()).Returns(_itemData.GetEnumerator());
+            _mockDbSet = new Mock<DbSet<ToDoItemModel>>();
+            _mockDbSet.As<IQueryable<ToDoItemModel>>().Setup(m => m.Provider).Returns(_itemData.Provider);
+            _mockDbSet.As<IQueryable<ToDoItemModel>>().Setup(m => m.Expression).Returns(_itemData.Expression);
+            _mockDbSet.As<IQueryable<ToDoItemModel>>().Setup(m => m.ElementType).Returns(_itemData.ElementType);
+            _mockDbSet.As<IQueryable<ToDoItemModel>>().Setup(m => m.GetEnumerator()).Returns(_itemData.GetEnumerator());
 
             var mockContext = new Mock<IToDoDbContext>();
-            mockContext.Setup(c => c.ToDoItems).Returns(mockSet.Object);
-            _mockDbContext = mockContext.Object;
+            mockContext.Setup(c => c.ToDoItems).Returns(_mockDbSet.Object);
+            _mockDbContext = mockContext;
         }
 
         [Fact]
         public void GetAllItemsTest()
         {
-            var toDoService = new ToDoService(_mockDbContext);
+            var toDoService = new ToDoService(_mockDbContext.Object);
 
             var result = toDoService.GetAllItems();
             Assert.IsType<List<ToDoItemModel>>(result);
@@ -57,7 +58,7 @@ namespace ToDoUnitTest
         [Fact]
         public void GetItemById()
         {
-            var toDoService = new ToDoService(_mockDbContext);
+            var toDoService = new ToDoService(_mockDbContext.Object);
 
             var getId1 = toDoService.GetById(1);
             Assert.IsType<ToDoItemModel>(getId1);
@@ -72,7 +73,7 @@ namespace ToDoUnitTest
         [Fact]
         public void AddItemTest()
         {
-            var toDoService = new ToDoService(_mockDbContext);
+            var toDoService = new ToDoService(_mockDbContext.Object);
             var itemModel = new ToDoItemModel
             {
                 Id = 3,
@@ -80,16 +81,15 @@ namespace ToDoUnitTest
                 IsComplete = false,
             };
             toDoService.AddItem(itemModel);
-            
-            var result = toDoService.GetById(3);
-            Assert.IsType<ToDoItemModel>(result);
-            Assert.Equal("Create unit testing", result.Name);
+
+            _mockDbSet.Verify(x => x.Add(It.IsAny<ToDoItemModel>()), Times.Once);
+            _mockDbContext.Verify(x => x.SaveChanges(), Times.Once);
         }
 
         [Fact]
         public void UpdateItemTest()
         {
-            var toDoService = new ToDoService(_mockDbContext);
+            var toDoService = new ToDoService(_mockDbContext.Object);
             var updateRequest = new UpdateItemRequestModel
             {
                 Name = "Push to git",
@@ -103,7 +103,7 @@ namespace ToDoUnitTest
         [Fact]
         public void DeleteItemTest()
         {
-            var toDoService = new ToDoService(_mockDbContext);
+            var toDoService = new ToDoService(_mockDbContext.Object);
             var itemModel = new ToDoItemModel
             {
                 Id = 2,
@@ -112,8 +112,8 @@ namespace ToDoUnitTest
             };
             toDoService.DeleteItem(itemModel);
 
-            var result = toDoService.GetAllItems();
-            Assert.Equal(1, result.Count);
+            _mockDbSet.Verify(x => x.Remove(It.IsAny<ToDoItemModel>()), Times.Once);
+            _mockDbContext.Verify(x => x.SaveChanges(), Times.Once);
         }
     }
 }
