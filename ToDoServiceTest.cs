@@ -10,15 +10,22 @@ using ToDoListApp.Services;
 
 namespace ToDoUnitTest
 {
-    public class ToDoControllerTest
+    public class ToDoServiceTest
     {
-        private readonly IQueryable<ToDoItemModel> _itemData;
         private readonly Mock<IToDoDbContext> _mockDbContext;
         private readonly Mock<DbSet<ToDoItemModel>> _mockDbSet;
 
-        public ToDoControllerTest()
+        public ToDoServiceTest()
         {
-            _itemData = new List<ToDoItemModel>
+            _mockDbSet = SetupMockDbSet();
+            var mockContext = new Mock<IToDoDbContext>();
+            mockContext.Setup(c => c.ToDoItems).Returns(_mockDbSet.Object);
+            _mockDbContext = mockContext;
+        }
+
+        private Mock<DbSet<ToDoItemModel>> SetupMockDbSet()
+        {
+            var _itemData = new List<ToDoItemModel>
             {
                 new ToDoItemModel
                 {
@@ -34,15 +41,13 @@ namespace ToDoUnitTest
                 }
             }.AsQueryable();
 
-            _mockDbSet = new Mock<DbSet<ToDoItemModel>>();
-            _mockDbSet.As<IQueryable<ToDoItemModel>>().Setup(m => m.Provider).Returns(_itemData.Provider);
-            _mockDbSet.As<IQueryable<ToDoItemModel>>().Setup(m => m.Expression).Returns(_itemData.Expression);
-            _mockDbSet.As<IQueryable<ToDoItemModel>>().Setup(m => m.ElementType).Returns(_itemData.ElementType);
-            _mockDbSet.As<IQueryable<ToDoItemModel>>().Setup(m => m.GetEnumerator()).Returns(_itemData.GetEnumerator());
+            var mockDbSet = new Mock<DbSet<ToDoItemModel>>();
+            mockDbSet.As<IQueryable<ToDoItemModel>>().Setup(m => m.Provider).Returns(_itemData.Provider);
+            mockDbSet.As<IQueryable<ToDoItemModel>>().Setup(m => m.Expression).Returns(_itemData.Expression);
+            mockDbSet.As<IQueryable<ToDoItemModel>>().Setup(m => m.ElementType).Returns(_itemData.ElementType);
+            mockDbSet.As<IQueryable<ToDoItemModel>>().Setup(m => m.GetEnumerator()).Returns(_itemData.GetEnumerator());
 
-            var mockContext = new Mock<IToDoDbContext>();
-            mockContext.Setup(c => c.ToDoItems).Returns(_mockDbSet.Object);
-            _mockDbContext = mockContext;
+            return mockDbSet;
         }
 
         [Fact]
@@ -74,9 +79,8 @@ namespace ToDoUnitTest
         public void AddItemTest()
         {
             var toDoService = new ToDoService(_mockDbContext.Object);
-            var itemModel = new ToDoItemModel
+            var itemModel = new AddUpdateItemRequestModel
             {
-                Id = 3,
                 Name = "Create unit testing",
                 IsComplete = false,
             };
@@ -90,7 +94,7 @@ namespace ToDoUnitTest
         public void UpdateItemTest()
         {
             var toDoService = new ToDoService(_mockDbContext.Object);
-            var updateRequest = new UpdateItemRequestModel
+            var updateRequest = new AddUpdateItemRequestModel
             {
                 Name = "Push to git",
                 IsComplete = true,
